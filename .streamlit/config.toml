@@ -1,8 +1,6 @@
 [server]
 headless = true
 port = 7860
-enableCORS = false
-enableXsrfProtection = false
 
 [theme]
 primaryColor = "#c8102e"
