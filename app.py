@@ -34,16 +34,20 @@ def setup_db():
 
 setup_db()
 
-# Auto-build ChromaDB index if missing (runs once on first startup)
+# Auto-build ChromaDB index if missing (runs in background thread so app stays responsive)
 @st.cache_resource
 def setup_index():
+    import threading
+    import subprocess
+
     chromadb_path = settings.chromadb_path
-    # Check if index exists and has content
     sqlite_path = chromadb_path / "chroma.sqlite3"
-    if not sqlite_path.exists():
-        logger.info("ChromaDB index not found — running ingestion pipeline...")
+    if sqlite_path.exists():
+        return True
+
+    def run_ingest():
+        logger.info("ChromaDB index not found — running ingestion in background...")
         try:
-            import subprocess
             result = subprocess.run(
                 ["python", "scripts/ingest.py"],
                 cwd=str(project_root),
@@ -57,6 +61,9 @@ def setup_index():
                 logger.error(f"Ingestion failed: {result.stderr}")
         except Exception as e:
             logger.error(f"Failed to run ingestion: {e}")
+
+    thread = threading.Thread(target=run_ingest, daemon=True)
+    thread.start()
     return True
 
 setup_index()
