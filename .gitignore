@@ -1,0 +1,21 @@
+# Environment
+.env
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+
+# Source documents (copyright — do NOT commit)
+data/sources/textbook.pdf
+data/sources/assignment.pdf
+
+# ChromaDB index (binary — rebuilt automatically on startup)
+data/chromadb/
+
+# Local logs (on HF Spaces this lives in /data/ persistent storage)
+data/logs.db
+data/logs/
+
+# Streamlit cache
+.streamlit/secrets.toml
