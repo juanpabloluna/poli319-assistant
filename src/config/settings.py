@@ -21,8 +21,9 @@ class Settings(BaseSettings):
         extra="allow",
     )
 
-    # API
-    anthropic_api_key: str = Field(..., description="Anthropic API key")
+    # API — defaults to "" so settings loads without crashing on Streamlit Cloud;
+    # actual key is read from st.secrets at call time in engine.py
+    anthropic_api_key: str = Field(default="", description="Anthropic API key")
 
     # Instructor dashboard password
     instructor_password: str = Field(

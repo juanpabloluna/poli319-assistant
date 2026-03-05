@@ -17,7 +17,9 @@ class ChatEngine:
 
     def __init__(self, retriever: Optional[Retriever] = None):
         self.retriever = retriever or Retriever()
-        self.client = Anthropic(api_key=settings.anthropic_api_key)
+        import streamlit as st
+        api_key = settings.anthropic_api_key or st.secrets.get("ANTHROPIC_API_KEY", "")
+        self.client = Anthropic(api_key=api_key)
         self.model = settings.llm_model
         logger.info(f"ChatEngine initialized with model: {self.model}")
 
