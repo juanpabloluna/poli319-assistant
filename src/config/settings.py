@@ -30,6 +30,12 @@ class Settings(BaseSettings):
         description="Password for instructor dashboard",
     )
 
+    # Student access code
+    course_code: str = Field(
+        default="2426",
+        description="Access code shared with enrolled students via MyCourses",
+    )
+
     # Model settings
     embedding_model: str = Field(default="all-MiniLM-L6-v2")
     llm_model: str = Field(default="claude-sonnet-4-6")

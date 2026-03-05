@@ -98,12 +98,14 @@ if not st.session_state.logged_in:
                 ["Not decided yet", "Format 1 — Table Update", "Format 2 — Graph Update",
                  "Format 3 — New Boxes", "Format 4 — New Case Study", "Format 5 — Case Updates"]
             )
+        access_code = st.text_input("Course access code", help="Posted on MyCourses")
         submitted = st.form_submit_button("Start research session", type="primary")
 
     if submitted:
         name = name.strip()
         student_id = student_id.strip()
         group_name = group_name.strip()
+        access_code = access_code.strip()
 
         if not name:
             st.error("Please enter your full name.")
@@ -111,6 +113,8 @@ if not st.session_state.logged_in:
             st.error("Please enter a valid McGill student ID (9 digits).")
         elif not group_name:
             st.error("Please enter your group name or number.")
+        elif access_code != settings.course_code:
+            st.error("Incorrect access code. Check MyCourses for the code.")
         else:
             session_id = str(uuid.uuid4())
             st.session_state.logged_in = True
