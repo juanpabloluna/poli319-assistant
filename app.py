@@ -12,7 +12,19 @@ from pathlib import Path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
+import os
+
 import streamlit as st
+
+# Streamlit Cloud exposes secrets via st.secrets, not os.environ.
+# Inject them so pydantic_settings can find them.
+try:
+    for _k, _v in st.secrets.items():
+        if isinstance(_v, str):
+            os.environ.setdefault(_k.upper(), _v)
+except Exception:
+    pass
+
 from loguru import logger
 
 from src.config.settings import settings
