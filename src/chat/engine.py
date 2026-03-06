@@ -34,14 +34,18 @@ class ChatEngine:
 
     def _call_claude(self, messages: list) -> str:
         """Call Claude API with multi-turn message history."""
-        response = self.client.messages.create(
-            model=self.model,
-            max_tokens=settings.max_tokens,
-            temperature=settings.temperature,
-            system=SYSTEM_PROMPT,
-            messages=messages,
-        )
-        return response.content[0].text
+        try:
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=int(settings.max_tokens),
+                temperature=float(settings.temperature),
+                system=SYSTEM_PROMPT,
+                messages=messages,
+            )
+            return response.content[0].text
+        except Exception as e:
+            logger.error(f"Claude API call failed: {type(e).__name__}: {e}")
+            raise
 
     def chat(
         self,
