@@ -20,7 +20,7 @@ from src.logging.disclosure import draft_disclosure
 st.set_page_config(
     page_title="Chat — POLI 319",
     page_icon="💬",
-    layout="centered",
+    layout="wide",
 )
 
 # ── Guard: must be logged in ─────────────────────────────────────────────────
@@ -37,7 +37,7 @@ def get_engine():
 
 engine = get_engine()
 
-# ── Sidebar: reference info only ─────────────────────────────────────────────
+# ── Sidebar ──────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown(f"**Student:** {st.session_state.student_name}")
     st.markdown(f"**Group:** {st.session_state.group_name}")
@@ -66,6 +66,107 @@ with st.sidebar:
         - **March 12**: Written pitch due
         - **April 20**: Final submission
         """)
+
+    st.divider()
+
+    n_messages = len(st.session_state.get("conversation", []))
+
+    st.markdown("<h3 style='color:#c8102e;'>AI Use Statement</h3>", unsafe_allow_html=True)
+    st.caption("Required for submission — worth 15 pts.")
+    with st.expander("Generate my AI Use Statement", expanded=st.session_state.get("disclosure_generated", False)):
+        with st.form("ai_disclosure_form"):
+            confirmed = st.checkbox(
+                "I used the POLI 319 Research Assistant as part of my research process.",
+            )
+            st.markdown("**How did you use it?**")
+            used_for_topic    = st.checkbox("Scoping my topic / research question")
+            used_for_sources  = st.checkbox("Finding or evaluating data sources")
+            used_for_textbook = st.checkbox("Understanding the textbook's argument")
+            used_for_structure = st.checkbox("Planning the structure of my output")
+            used_for_analysis = st.checkbox("Interpreting data or evidence")
+            extra_context = st.text_area(
+                "Other / additional context (optional)",
+                placeholder="E.g. 'I used it to find data on homicide trends for Chapter 11.'",
+                max_chars=400,
+            )
+            if st.form_submit_button("Generate draft statement", type="primary", use_container_width=True):
+                if not confirmed:
+                    st.warning("Please tick the confirmation checkbox first.")
+                else:
+                    uses = []
+                    if used_for_topic:    uses.append("scoping the research topic and research question")
+                    if used_for_sources:  uses.append("finding and evaluating data sources")
+                    if used_for_textbook: uses.append("understanding the textbook's argument")
+                    if used_for_structure: uses.append("planning the structure of the output")
+                    if used_for_analysis: uses.append("interpreting data or evidence")
+                    if extra_context.strip(): uses.append(extra_context.strip())
+
+                    augmented = list(st.session_state.get("conversation", []))
+                    if uses:
+                        augmented = [{"role": "user", "content": "The student used the AI for: " + "; ".join(uses) + "."}] + augmented
+
+                    with st.spinner("Drafting..."):
+                        draft = draft_disclosure(augmented, st.session_state.student_name, st.session_state.group_name)
+
+                    st.session_state.disclosure_text = draft
+                    st.session_state.disclosure_generated = True
+                    try:
+                        db.end_session(settings.db_path, st.session_state.session_id, draft)
+                    except Exception as e:
+                        logger.error(f"Failed to save disclosure: {e}")
+                    st.rerun()
+
+        if st.session_state.get("disclosure_generated") and "disclosure_text" in st.session_state:
+            st.success("Draft ready — review and edit before submitting.")
+            edited = st.text_area(
+                "Your draft (edit as needed):",
+                value=st.session_state.disclosure_text,
+                height=200,
+            )
+            st.download_button(
+                "Download (.txt)",
+                data=edited,
+                file_name=f"AI_use_{st.session_state.group_name.replace(' ', '_')}.txt",
+                mime="text/plain",
+                use_container_width=True,
+            )
+
+    st.divider()
+    with st.expander("Leave feedback on this tool"):
+        with st.form("feedback_form"):
+            rating = st.select_slider(
+                "How useful was this tool?",
+                options=[1, 2, 3, 4, 5],
+                value=3,
+                format_func=lambda x: {1: "1 — Not useful", 2: "2 — Slightly useful",
+                                        3: "3 — Somewhat useful", 4: "4 — Useful",
+                                        5: "5 — Very useful"}[x],
+            )
+            comment = st.text_area(
+                "Any comments? (optional)",
+                placeholder="What worked well? What could be improved?",
+                max_chars=500,
+            )
+            if st.form_submit_button("Submit feedback", use_container_width=True):
+                try:
+                    db.save_feedback(
+                        settings.db_path,
+                        st.session_state.session_id,
+                        rating,
+                        comment.strip(),
+                    )
+                    st.success("Thank you for your feedback!")
+                except Exception as e:
+                    logger.error(f"Failed to save feedback: {e}")
+                    st.error("Could not save feedback — please try again.")
+
+    st.divider()
+    if st.button("End session", use_container_width=True):
+        try:
+            db.end_session(settings.db_path, st.session_state.session_id)
+        except Exception as e:
+            logger.error(f"Failed to end session: {e}")
+        st.info(f"Session ended. Total messages: {n_messages // 2}")
 
 # ── Chat area ────────────────────────────────────────────────────────────────
 st.title("💬 Research Chat")
@@ -115,107 +216,3 @@ if user_input:
     except Exception as e:
         logger.error(f"DB log failed: {e}")
 
-# ── Below-chat actions (visible on mobile) ───────────────────────────────────
-st.divider()
-
-# AI Use Statement
-st.markdown("<h3 style='color:#c8102e;'>AI Use Statement</h3>", unsafe_allow_html=True)
-st.caption("Required for submission — worth 15 pts.")
-
-with st.expander("Generate my AI Use Statement", expanded=st.session_state.get("disclosure_generated", False)):
-    with st.form("ai_disclosure_form"):
-        confirmed = st.checkbox(
-            "I used the POLI 319 Research Assistant as part of my research process.",
-        )
-        st.markdown("**How did you use it?**")
-        used_for_topic     = st.checkbox("Scoping my topic / research question")
-        used_for_sources   = st.checkbox("Finding or evaluating data sources")
-        used_for_textbook  = st.checkbox("Understanding the textbook's argument")
-        used_for_structure = st.checkbox("Planning the structure of my output")
-        used_for_analysis  = st.checkbox("Interpreting data or evidence")
-        extra_context = st.text_area(
-            "Other / additional context (optional)",
-            placeholder="E.g. 'I used it to find data on homicide trends for Chapter 11.'",
-            max_chars=400,
-        )
-        if st.form_submit_button("Generate draft statement", type="primary", use_container_width=True):
-            if not confirmed:
-                st.warning("Please tick the confirmation checkbox first.")
-            else:
-                uses = []
-                if used_for_topic:     uses.append("scoping the research topic and research question")
-                if used_for_sources:   uses.append("finding and evaluating data sources")
-                if used_for_textbook:  uses.append("understanding the textbook's argument")
-                if used_for_structure: uses.append("planning the structure of the output")
-                if used_for_analysis:  uses.append("interpreting data or evidence")
-                if extra_context.strip(): uses.append(extra_context.strip())
-
-                augmented = list(st.session_state.get("conversation", []))
-                if uses:
-                    augmented = [{"role": "user", "content": "The student used the AI for: " + "; ".join(uses) + "."}] + augmented
-
-                with st.spinner("Drafting..."):
-                    draft = draft_disclosure(augmented, st.session_state.student_name, st.session_state.group_name)
-
-                st.session_state.disclosure_text = draft
-                st.session_state.disclosure_generated = True
-                try:
-                    db.end_session(settings.db_path, st.session_state.session_id, draft)
-                except Exception as e:
-                    logger.error(f"Failed to save disclosure: {e}")
-                st.rerun()
-
-    if st.session_state.get("disclosure_generated") and "disclosure_text" in st.session_state:
-        st.success("Draft ready — review and edit before submitting.")
-        edited = st.text_area(
-            "Your draft (edit as needed):",
-            value=st.session_state.disclosure_text,
-            height=200,
-        )
-        st.download_button(
-            "Download (.txt)",
-            data=edited,
-            file_name=f"AI_use_{st.session_state.group_name.replace(' ', '_')}.txt",
-            mime="text/plain",
-            use_container_width=True,
-        )
-
-st.divider()
-
-# Feedback
-with st.expander("Leave feedback on this tool"):
-    with st.form("feedback_form"):
-        rating = st.select_slider(
-            "How useful was this tool?",
-            options=[1, 2, 3, 4, 5],
-            value=3,
-            format_func=lambda x: {1: "1 — Not useful", 2: "2 — Slightly useful",
-                                    3: "3 — Somewhat useful", 4: "4 — Useful",
-                                    5: "5 — Very useful"}[x],
-        )
-        comment = st.text_area(
-            "Any comments? (optional)",
-            placeholder="What worked well? What could be improved?",
-            max_chars=500,
-        )
-        if st.form_submit_button("Submit feedback", use_container_width=True):
-            try:
-                db.save_feedback(
-                    settings.db_path,
-                    st.session_state.session_id,
-                    rating,
-                    comment.strip(),
-                )
-                st.success("Thank you for your feedback!")
-            except Exception as e:
-                logger.error(f"Failed to save feedback: {e}")
-                st.error("Could not save feedback — please try again.")
-
-st.divider()
-n_messages = len(st.session_state.get("conversation", []))
-if st.button("End session", use_container_width=True):
-    try:
-        db.end_session(settings.db_path, st.session_state.session_id)
-    except Exception as e:
-        logger.error(f"Failed to end session: {e}")
-    st.info(f"Session ended. Total messages: {n_messages // 2}")
