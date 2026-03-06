@@ -114,6 +114,12 @@ class VectorStore:
         Returns:
             List of RetrievalResult objects
         """
+        count = self.collection.count()
+        if count == 0:
+            logger.warning("Collection is empty — returning no results")
+            return []
+        n_results = min(n_results, count)
+
         results = self.collection.query(
             query_embeddings=[query_embedding],
             n_results=n_results,
