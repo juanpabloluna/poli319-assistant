@@ -71,8 +71,7 @@ with st.sidebar:
 
     n_messages = len(st.session_state.get("conversation", []))
 
-    st.divider()
-    st.markdown("### AI Use Statement")
+    st.markdown("<h3 style='color:#c8102e;'>AI Use Statement</h3>", unsafe_allow_html=True)
     st.caption("Required for submission — worth 15 pts.")
     with st.expander("Generate my AI Use Statement", expanded=st.session_state.get("disclosure_generated", False)):
         with st.form("ai_disclosure_form"):
@@ -133,14 +132,6 @@ with st.sidebar:
             )
 
     st.divider()
-    if st.button("End session", use_container_width=True):
-        try:
-            db.end_session(settings.db_path, st.session_state.session_id)
-        except Exception as e:
-            logger.error(f"Failed to end session: {e}")
-        st.info(f"Session ended. Total messages: {n_messages // 2}")
-
-    st.divider()
     with st.expander("Leave feedback on this tool"):
         with st.form("feedback_form"):
             rating = st.select_slider(
@@ -168,6 +159,14 @@ with st.sidebar:
                 except Exception as e:
                     logger.error(f"Failed to save feedback: {e}")
                     st.error("Could not save feedback — please try again.")
+
+    st.divider()
+    if st.button("End session", use_container_width=True):
+        try:
+            db.end_session(settings.db_path, st.session_state.session_id)
+        except Exception as e:
+            logger.error(f"Failed to end session: {e}")
+        st.info(f"Session ended. Total messages: {n_messages // 2}")
 
 # ── Chat area ────────────────────────────────────────────────────────────────
 st.title("💬 Research Chat")
