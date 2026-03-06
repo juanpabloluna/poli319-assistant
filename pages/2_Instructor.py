@@ -139,6 +139,25 @@ with st.sidebar:
     )
     st.caption(f"Last refreshed: {timestamp}")
 
+    st.divider()
+    st.markdown("### GitHub Backup")
+    st.caption(
+        "Pushes all CSVs to your backup repo. "
+        "Requires `GITHUB_TOKEN` and `BACKUP_REPO` in Streamlit secrets."
+    )
+    if st.button("Push logs to GitHub now", use_container_width=True):
+        from src.logging.backup import push_logs_to_github, get_github_config
+        token, repo = get_github_config()
+        if not token or not repo:
+            st.error("GITHUB_TOKEN or BACKUP_REPO not set in Streamlit secrets.")
+        else:
+            with st.spinner(f"Pushing to {repo}..."):
+                ok = push_logs_to_github(settings.db_path, token, repo)
+            if ok:
+                st.success(f"Logs pushed to github.com/{repo}/logs/")
+            else:
+                st.error("Push failed — check the app logs for details.")
+
 # ── Tabs ─────────────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["Sessions", "Conversations", "Group Summaries", "AI Disclosures", "Feedback"])
 

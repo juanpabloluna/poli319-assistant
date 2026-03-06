@@ -34,6 +34,31 @@ def setup_db():
 
 setup_db()
 
+# Push logs to GitHub on startup (runs once per container boot via cache_resource)
+@st.cache_resource
+def startup_github_backup():
+    """Push existing logs to GitHub immediately after a restart."""
+    import threading
+    from src.logging.backup import push_logs_to_github, get_github_config
+
+    token, repo = get_github_config()
+    if not token or not repo:
+        logger.info("GitHub backup not configured — skipping startup backup.")
+        return False
+
+    def _push():
+        try:
+            ok = push_logs_to_github(settings.db_path, token, repo)
+            if ok:
+                logger.info("Startup GitHub backup complete.")
+        except Exception as e:
+            logger.warning(f"Startup GitHub backup failed: {e}")
+
+    threading.Thread(target=_push, daemon=True).start()
+    return True
+
+startup_github_backup()
+
 # Auto-build ChromaDB index if missing (runs in background thread so app stays responsive)
 @st.cache_resource
 def setup_index():
