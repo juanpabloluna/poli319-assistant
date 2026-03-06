@@ -58,11 +58,15 @@ class ChatEngine:
         """
         start = time.time()
 
-        # Retrieve relevant context from the knowledge base
-        results, context = self.retriever.retrieve_with_context(
-            query=user_message,
-            n_results=settings.top_k,
-        )
+        # Retrieve relevant context from the knowledge base (non-fatal)
+        try:
+            results, context = self.retriever.retrieve_with_context(
+                query=user_message,
+                n_results=settings.top_k,
+            )
+        except Exception as e:
+            logger.warning(f"RAG retrieval failed, proceeding without context: {e}")
+            results, context = [], ""
 
         # Extract source titles for logging
         source_titles = list({r.chunk.title for r in results}) if results else []
