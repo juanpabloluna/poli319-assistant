@@ -69,27 +69,10 @@ with st.sidebar:
 
     st.divider()
 
-    n_messages = len(st.session_state.get("conversation", []))
-
-    if n_messages >= 6:  # at least 3 user-assistant exchanges
-        if st.button("Generate AI Use Statement", use_container_width=True):
-            with st.spinner("Drafting your AI Use Statement..."):
-                draft = draft_disclosure(
-                    st.session_state.conversation,
-                    st.session_state.student_name,
-                    st.session_state.group_name,
-                )
-                st.session_state.disclosure_text = draft
-                st.session_state.disclosure_generated = True
-                try:
-                    db.end_session(settings.db_path, st.session_state.session_id, draft)
-                except Exception as e:
-                    logger.error(f"Failed to save disclosure: {e}")
-
     if st.session_state.get("disclosure_generated"):
-        st.success("AI Use Statement ready — see below the chat.")
+        st.success("AI Use Statement ready — scroll down.")
 
-    st.divider()
+    n_messages = len(st.session_state.get("conversation", []))
     if st.button("End session", use_container_width=True):
         try:
             db.end_session(settings.db_path, st.session_state.session_id)
@@ -142,20 +125,17 @@ for msg in st.session_state.get("conversation", []):
 user_input = st.chat_input("Ask a research question...")
 
 if user_input:
-    # Show user message immediately
     with st.chat_message("user"):
         st.markdown(user_input)
 
-    # Add to history
     st.session_state.conversation.append({"role": "user", "content": user_input})
 
-    # Generate response
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
             try:
                 response_text, source_titles = engine.chat(
                     user_message=user_input,
-                    conversation_history=st.session_state.conversation[:-1],  # history before this turn
+                    conversation_history=st.session_state.conversation[:-1],
                 )
             except Exception as e:
                 response_text = f"Sorry, I encountered an error: {e}. Please try again."
@@ -169,29 +149,99 @@ if user_input:
                 for t in source_titles:
                     st.markdown(f"- {t}")
 
-    # Add assistant response to history
     st.session_state.conversation.append({"role": "assistant", "content": response_text})
 
-    # Log to DB
     try:
         db.log_message(settings.db_path, st.session_state.session_id, "user", user_input, [])
         db.log_message(settings.db_path, st.session_state.session_id, "assistant", response_text, source_titles)
     except Exception as e:
         logger.error(f"DB log failed: {e}")
 
-# ── AI Use Statement section ─────────────────────────────────────────────────
+# ── AI Use Statement ─────────────────────────────────────────────────────────
+st.divider()
+st.subheader("AI Use Statement")
+st.markdown(
+    "The assignment requires an AI Use Statement worth **15 points** (rubric: _AI Use & Disclosure_). "
+    "Complete the form below to generate a draft you can edit and include in your submission."
+)
+
+with st.form("ai_disclosure_form"):
+    confirmed = st.checkbox(
+        "I confirm that I used the POLI 319 Research Assistant (powered by Claude, Anthropic) "
+        "as part of my research process for the Textbook Addendum assignment.",
+        value=False,
+    )
+    st.markdown("**How did you use this tool?** _(optional — helps generate a more accurate draft)_")
+    col1, col2 = st.columns(2)
+    with col1:
+        used_for_topic = st.checkbox("Scoping my topic / research question")
+        used_for_sources = st.checkbox("Finding or evaluating data sources")
+        used_for_textbook = st.checkbox("Understanding the textbook's argument")
+    with col2:
+        used_for_structure = st.checkbox("Planning the structure of my output")
+        used_for_analysis = st.checkbox("Interpreting data or evidence")
+        used_for_other = st.checkbox("Other (describe below)")
+    extra_context = st.text_area(
+        "Additional context (optional)",
+        placeholder="E.g. 'I used it to find data on homicide trends for my graph update on Chapter 11.'",
+        max_chars=400,
+        label_visibility="collapsed",
+    )
+    submitted = st.form_submit_button("Generate draft AI Use Statement", type="primary", use_container_width=True)
+
+if submitted:
+    if not confirmed:
+        st.warning("Please tick the confirmation checkbox before generating the statement.")
+    else:
+        # Build a richer context string from checkboxes
+        uses = []
+        if used_for_topic:
+            uses.append("scoping the research topic and research question")
+        if used_for_sources:
+            uses.append("finding and evaluating data sources")
+        if used_for_textbook:
+            uses.append("understanding the textbook's argument")
+        if used_for_structure:
+            uses.append("planning the structure of the output")
+        if used_for_analysis:
+            uses.append("interpreting data or evidence")
+        if used_for_other and extra_context.strip():
+            uses.append(extra_context.strip())
+        elif extra_context.strip():
+            uses.append(extra_context.strip())
+
+        # Inject the checkbox selections into the conversation history so the drafter sees them
+        augmented_history = list(st.session_state.get("conversation", []))
+        if uses:
+            use_summary = "The student indicated they used the AI assistant for: " + "; ".join(uses) + "."
+            augmented_history = [{"role": "user", "content": use_summary}] + augmented_history
+
+        with st.spinner("Drafting your AI Use Statement..."):
+            draft = draft_disclosure(
+                augmented_history,
+                st.session_state.student_name,
+                st.session_state.group_name,
+            )
+
+        st.session_state.disclosure_text = draft
+        st.session_state.disclosure_generated = True
+
+        try:
+            db.end_session(settings.db_path, st.session_state.session_id, draft)
+        except Exception as e:
+            logger.error(f"Failed to save disclosure: {e}")
+
 if st.session_state.get("disclosure_generated") and "disclosure_text" in st.session_state:
-    st.divider()
-    st.subheader("AI Use Statement (draft)")
-    st.caption("Review and edit this statement before including it in your submission.")
+    st.markdown("---")
+    st.markdown("**Review and edit before submitting.** This is a draft — the wording must reflect your actual use.")
     edited = st.text_area(
-        "Edit your statement below:",
+        "Your AI Use Statement:",
         value=st.session_state.disclosure_text,
-        height=150,
+        height=180,
         label_visibility="collapsed",
     )
     st.download_button(
-        "Download AI Use Statement",
+        "Download AI Use Statement (.txt)",
         data=edited,
         file_name=f"AI_use_statement_{st.session_state.group_name.replace(' ', '_')}.txt",
         mime="text/plain",
