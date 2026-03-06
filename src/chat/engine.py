@@ -5,7 +5,6 @@ from typing import Optional
 
 from anthropic import Anthropic
 from loguru import logger
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.config.settings import settings
 from src.rag.retriever import Retriever
@@ -28,10 +27,6 @@ class ChatEngine:
         self.model = settings.llm_model
         logger.info(f"ChatEngine initialized with model: {self.model}")
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=4, max=10),
-    )
     def _call_claude(self, messages: list) -> str:
         """Call Claude API with multi-turn message history."""
         response = self.client.messages.create(

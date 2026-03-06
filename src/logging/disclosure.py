@@ -11,7 +11,14 @@ _client = None
 def _get_client() -> Anthropic:
     global _client
     if _client is None:
-        _client = Anthropic(api_key=settings.anthropic_api_key)
+        api_key = settings.anthropic_api_key
+        if not api_key:
+            try:
+                import streamlit as st
+                api_key = st.secrets["ANTHROPIC_API_KEY"]
+            except Exception:
+                pass
+        _client = Anthropic(api_key=api_key)
     return _client
 
 
