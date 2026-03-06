@@ -23,6 +23,11 @@ class ChatEngine:
                 api_key = st.secrets["ANTHROPIC_API_KEY"]
             except Exception:
                 pass
+        if not api_key:
+            raise ValueError(
+                "ANTHROPIC_API_KEY not found. Add it to Streamlit Cloud secrets as:\n"
+                'ANTHROPIC_API_KEY = "sk-ant-..."'
+            )
         self.client = Anthropic(api_key=api_key)
         self.model = settings.llm_model
         logger.info(f"ChatEngine initialized with model: {self.model}")
