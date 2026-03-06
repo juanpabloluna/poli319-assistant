@@ -97,6 +97,35 @@ with st.sidebar:
             logger.error(f"Failed to end session: {e}")
         st.info(f"Session ended. Total messages: {n_messages // 2}")
 
+    st.divider()
+    with st.expander("Leave feedback on this tool"):
+        with st.form("feedback_form"):
+            rating = st.select_slider(
+                "How useful was this tool?",
+                options=[1, 2, 3, 4, 5],
+                value=3,
+                format_func=lambda x: {1: "1 — Not useful", 2: "2 — Slightly useful",
+                                        3: "3 — Somewhat useful", 4: "4 — Useful",
+                                        5: "5 — Very useful"}[x],
+            )
+            comment = st.text_area(
+                "Any comments? (optional)",
+                placeholder="What worked well? What could be improved?",
+                max_chars=500,
+            )
+            if st.form_submit_button("Submit feedback", use_container_width=True):
+                try:
+                    db.save_feedback(
+                        settings.db_path,
+                        st.session_state.session_id,
+                        rating,
+                        comment.strip(),
+                    )
+                    st.success("Thank you for your feedback!")
+                except Exception as e:
+                    logger.error(f"Failed to save feedback: {e}")
+                    st.error("Could not save feedback — please try again.")
+
 # ── Chat area ────────────────────────────────────────────────────────────────
 st.title("💬 Research Chat")
 st.caption(

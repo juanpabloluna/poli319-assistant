@@ -37,6 +37,15 @@ def init_db(db_path: Path) -> None:
             retrieved_sources TEXT
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS feedback (
+            feedback_id  TEXT PRIMARY KEY,
+            session_id   TEXT NOT NULL REFERENCES sessions(session_id),
+            timestamp    TEXT NOT NULL,
+            rating       INTEGER NOT NULL,
+            comment      TEXT
+        )
+    """)
     conn.commit()
     conn.close()
     logger.debug(f"Database initialized at {db_path}")
@@ -143,6 +152,32 @@ def get_all_disclosures(db_path: Path) -> pd.DataFrame:
     conn = sqlite3.connect(str(db_path))
     df = pd.read_sql_query(
         "SELECT session_id, student_name, group_name, start_time, disclosure_draft FROM sessions WHERE disclosure_draft IS NOT NULL ORDER BY start_time DESC",
+        conn,
+    )
+    conn.close()
+    return df
+
+
+def save_feedback(db_path: Path, session_id: str, rating: int, comment: str) -> None:
+    conn = sqlite3.connect(str(db_path))
+    conn.execute(
+        "INSERT INTO feedback (feedback_id, session_id, timestamp, rating, comment) VALUES (?,?,?,?,?)",
+        (str(uuid.uuid4()), session_id, datetime.now().isoformat(), rating, comment),
+    )
+    conn.commit()
+    conn.close()
+    logger.info(f"Feedback saved for session {session_id}: rating={rating}")
+
+
+def get_all_feedback(db_path: Path) -> pd.DataFrame:
+    conn = sqlite3.connect(str(db_path))
+    df = pd.read_sql_query(
+        """
+        SELECT f.timestamp, s.student_name, s.group_name, f.rating, f.comment
+        FROM feedback f
+        JOIN sessions s ON f.session_id = s.session_id
+        ORDER BY f.timestamp DESC
+        """,
         conn,
     )
     conn.close()

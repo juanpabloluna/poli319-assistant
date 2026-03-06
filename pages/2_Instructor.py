@@ -59,9 +59,14 @@ def load_group_summaries():
 def load_disclosures():
     return db.get_all_disclosures(settings.db_path)
 
+@st.cache_data(ttl=60)
+def load_feedback():
+    return db.get_all_feedback(settings.db_path)
+
 sessions_df = load_sessions()
 groups_df = load_group_summaries()
 disclosures_df = load_disclosures()
+feedback_df = load_feedback()
 
 # ── Header ───────────────────────────────────────────────────────────────────
 st.title("📊 Instructor Dashboard — POLI 319")
@@ -113,6 +118,10 @@ with st.sidebar:
             disclosures = db.get_all_disclosures(settings.db_path)
             zf.writestr("disclosures.csv", disclosures.to_csv(index=False))
 
+            # Feedback
+            feedback = db.get_all_feedback(settings.db_path)
+            zf.writestr("feedback.csv", feedback.to_csv(index=False))
+
             # Group summaries
             groups = db.get_group_summaries(settings.db_path)
             zf.writestr("group_summaries.csv", groups.to_csv(index=False))
@@ -131,7 +140,7 @@ with st.sidebar:
     st.caption(f"Last refreshed: {timestamp}")
 
 # ── Tabs ─────────────────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4 = st.tabs(["Sessions", "Conversations", "Group Summaries", "AI Disclosures"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["Sessions", "Conversations", "Group Summaries", "AI Disclosures", "Feedback"])
 
 # ── Tab 1: Sessions table ────────────────────────────────────────────────────
 with tab1:
@@ -264,3 +273,45 @@ with tab4:
         for _, row in disclosures_df.iterrows():
             with st.expander(f"{row['student_name']} | {row['group_name']} | {row['start_time'][:16]}"):
                 st.text(row["disclosure_draft"])
+
+# ── Tab 5: Student feedback ───────────────────────────────────────────────────
+with tab5:
+    st.subheader("Student Feedback")
+    st.caption("Ratings and comments submitted by students via the feedback form in the chat interface.")
+
+    if feedback_df.empty:
+        st.info("No feedback submitted yet.")
+    else:
+        # Summary metrics
+        avg_rating = feedback_df["rating"].mean()
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Responses", len(feedback_df))
+        with col2:
+            st.metric("Average rating", f"{avg_rating:.1f} / 5")
+        with col3:
+            pct_positive = (feedback_df["rating"] >= 4).mean() * 100
+            st.metric("Rated 4–5 ★", f"{pct_positive:.0f}%")
+
+        # Rating distribution
+        st.markdown("#### Rating distribution")
+        rating_counts = feedback_df["rating"].value_counts().sort_index()
+        st.bar_chart(rating_counts)
+
+        # Full table
+        st.markdown("#### All responses")
+        display_df = feedback_df.copy()
+        display_df["rating"] = display_df["rating"].apply(lambda r: "★" * r + "☆" * (5 - r))
+        st.dataframe(
+            display_df,
+            use_container_width=True,
+            column_config={
+                "timestamp": st.column_config.TextColumn("When", width="small"),
+                "student_name": st.column_config.TextColumn("Student"),
+                "group_name": st.column_config.TextColumn("Group"),
+                "rating": st.column_config.TextColumn("Rating"),
+                "comment": st.column_config.TextColumn("Comment", width="large"),
+            },
+        )
+        csv = feedback_df.to_csv(index=False)
+        st.download_button("Download feedback CSV", csv, "feedback.csv", "text/csv")
