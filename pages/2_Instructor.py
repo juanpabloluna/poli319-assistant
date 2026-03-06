@@ -152,11 +152,11 @@ with st.sidebar:
             st.error("GITHUB_TOKEN or BACKUP_REPO not set in Streamlit secrets.")
         else:
             with st.spinner(f"Pushing to {repo}..."):
-                ok = push_logs_to_github(settings.db_path, token, repo)
+                ok, err = push_logs_to_github(settings.db_path, token, repo)
             if ok:
                 st.success(f"Logs pushed to github.com/{repo}/logs/")
             else:
-                st.error("Push failed — check the app logs for details.")
+                st.error(f"Push failed: {err}")
 
 # ── Tabs ─────────────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["Sessions", "Conversations", "Group Summaries", "AI Disclosures", "Feedback"])
