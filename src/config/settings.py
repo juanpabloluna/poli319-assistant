@@ -39,7 +39,7 @@ class Settings(BaseSettings):
 
     # Model settings
     embedding_model: str = Field(default="all-MiniLM-L6-v2")
-    llm_model: str = Field(default="claude-sonnet-4-6")
+    llm_model: str = Field(default="claude-3-5-sonnet-20241022")
 
     # Paths
     chromadb_path: Path = Field(default=Path("./data/chromadb"))

@@ -10,8 +10,8 @@ __pycache__/
 data/sources/textbook.pdf
 data/sources/assignment.pdf
 
-# ChromaDB index (binary — rebuilt automatically on startup)
-data/chromadb/
+# ChromaDB index is committed to the repo (pre-built from textbook Word files)
+# data/chromadb/
 
 # Local logs (on HF Spaces this lives in /data/ persistent storage)
 data/logs.db
